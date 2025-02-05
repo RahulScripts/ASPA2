@@ -2,74 +2,79 @@ from algopy import *
 from algopy.arc4 import abimethod
 
 
-class DigitalMarket(ARC4Contract):
-    assetid: UInt64
-    unitaryprice: UInt64
+class DigitalMarketplace(ARC4Contract):
+    asset_id: UInt64
+    price_per_unit: UInt64
 
-    # create the app
     @abimethod(allow_actions=["NoOp"], create="require")
-    def create_application(self, asset_id: Asset, unitary_price: UInt64) -> None:
-        self.assetid = asset_id.id
-        self.unitaryprice = unitary_price
+    def create_app(self, asset: Asset, price: UInt64) -> None:
+        """Initialize the contract with an asset and price per unit."""
+        self.asset_id = asset.id
+        self.price_per_unit = price
 
-    # update the listing price
     @abimethod()
-    def set_price(self, unitary_price: UInt64) -> None:
-        assert Txn.sender == Global.creator_address
-        self.unitaryprice = unitary_price
+    def update_price(self, new_price: UInt64) -> None:
+        """Allows the creator to update the price of the asset."""
+        assert (
+            Txn.sender == Global.creator_address
+        ), "Only the creator can update the price."
+        self.price_per_unit = new_price
 
-    # opt in to the asset that will be sold
     @abimethod()
-    def opt_in_to_asset(self, mbrpay: gtxn.PaymentTransaction) -> None:
-        assert Txn.sender == Global.creator_address
-        assert not Global.current_application_address.is_opted_in(Asset(self.assetid))
-
-        assert mbrpay.receiver == Global.current_application_address
-
-        assert mbrpay.amount == Global.min_balance + Global.asset_opt_in_min_balance
+    def opt_in_asset(self, deposit: gtxn.PaymentTransaction) -> None:
+        """Opt-in the contract to the asset, ensuring required minimum balance."""
+        assert Txn.sender == Global.creator_address, "Only the creator can opt-in."
+        assert not Global.current_application_address.is_opted_in(
+            Asset(self.asset_id)
+        ), "Already opted-in."
+        assert (
+            deposit.receiver == Global.current_application_address
+        ), "Funds must go to contract."
+        assert (
+            deposit.amount == Global.min_balance + Global.asset_opt_in_min_balance
+        ), "Incorrect deposit amount."
 
         itxn.AssetTransfer(
-            xfer_asset=self.assetid,
+            xfer_asset=self.asset_id,
             asset_receiver=Global.current_application_address,
             asset_amount=0,
         ).submit()
 
-    # buy the asset
     @abimethod()
-    def buy(self, buyerTxn: gtxn.PaymentTransaction, quantity: UInt64) -> None:
-        assert buyerTxn.sender == Txn.sender
-        assert buyerTxn.receiver == Global.current_application_address
-        assert buyerTxn.amount == self.unitaryprice * quantity
+    def purchase(self, payment: gtxn.PaymentTransaction, amount: UInt64) -> None:
+        """Allows users to buy the asset by sending the correct payment."""
+        assert payment.sender == Txn.sender, "Sender mismatch."
+        assert (
+            payment.receiver == Global.current_application_address
+        ), "Payment must go to contract."
+        assert (
+            payment.amount == self.price_per_unit * amount
+        ), "Incorrect payment amount."
 
         itxn.AssetTransfer(
-            xfer_asset=self.assetid,
+            xfer_asset=self.asset_id,
             asset_receiver=Txn.sender,
-            asset_amount=quantity,
+            asset_amount=amount,
         ).submit()
 
-    # delete the app & take your assets and profit back
     @abimethod(allow_actions=["DeleteApplication"])
-    def delete_application(self) -> None:
-        # Only allow the creator to delete the application
-        assert Txn.sender == Global.creator_address
+    def close_app(self) -> None:
+        """Allows the creator to delete the contract and reclaim assets."""
+        assert (
+            Txn.sender == Global.creator_address
+        ), "Only the creator can delete the contract."
 
-        # Send all the unsold assets to the creator
         itxn.AssetTransfer(
-            xfer_asset=self.assetid,
+            xfer_asset=self.asset_id,
             asset_receiver=Global.creator_address,
-            # The amount is 0, but the asset_close_to field is set
-            # This means that ALL assets are being sent to the asset_close_to address
             asset_amount=0,
-            # Close the asset to unlock the 0.1 ALGO that was locked in opt_in_to_asset
             asset_close_to=Global.creator_address,
             fee=1_000,
         ).submit()
 
-        # Send the remaining balance to the creator
         itxn.Payment(
             receiver=Global.creator_address,
             amount=0,
-            # Close the account to get back ALL the ALGO in the account
             close_remainder_to=Global.creator_address,
             fee=1_000,
         ).submit()

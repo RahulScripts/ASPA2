@@ -1,0 +1,433 @@
+#pragma version 10
+#pragma typetrack false
+
+// algopy.arc4.ARC4Contract.approval_program() -> uint64:
+main:
+    intcblock 0 1 4 1000
+    bytecblock "asset_id" "price_per_unit"
+    // smart_contracts/aspa/contract.py:5
+    // class DigitalMarketplace(ARC4Contract):
+    txn NumAppArgs
+    bz main_after_if_else@11
+    pushbytess 0x80e213db 0xa5781818 0x1154dcbb 0xee02ece7 0xf671a67b // method "create_app(asset,uint64)void", method "update_price(uint64)void", method "opt_in_asset(pay)void", method "purchase(pay,uint64)void", method "close_app()void"
+    txna ApplicationArgs 0
+    match main_create_app_route@3 main_update_price_route@4 main_opt_in_asset_route@5 main_purchase_route@6 main_close_app_route@7
+
+main_after_if_else@11:
+    // smart_contracts/aspa/contract.py:5
+    // class DigitalMarketplace(ARC4Contract):
+    intc_0 // 0
+    return
+
+main_close_app_route@7:
+    // smart_contracts/aspa/contract.py:60
+    // @abimethod(allow_actions=["DeleteApplication"])
+    txn OnCompletion
+    pushint 5 // DeleteApplication
+    ==
+    assert // OnCompletion is not DeleteApplication
+    txn ApplicationID
+    assert // can only call when not creating
+    callsub close_app
+    intc_1 // 1
+    return
+
+main_purchase_route@6:
+    // smart_contracts/aspa/contract.py:43
+    // @abimethod()
+    txn OnCompletion
+    !
+    assert // OnCompletion is not NoOp
+    txn ApplicationID
+    assert // can only call when not creating
+    // smart_contracts/aspa/contract.py:5
+    // class DigitalMarketplace(ARC4Contract):
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    txna ApplicationArgs 1
+    btoi
+    // smart_contracts/aspa/contract.py:43
+    // @abimethod()
+    callsub purchase
+    intc_1 // 1
+    return
+
+main_opt_in_asset_route@5:
+    // smart_contracts/aspa/contract.py:23
+    // @abimethod()
+    txn OnCompletion
+    !
+    assert // OnCompletion is not NoOp
+    txn ApplicationID
+    assert // can only call when not creating
+    // smart_contracts/aspa/contract.py:5
+    // class DigitalMarketplace(ARC4Contract):
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    // smart_contracts/aspa/contract.py:23
+    // @abimethod()
+    callsub opt_in_asset
+    intc_1 // 1
+    return
+
+main_update_price_route@4:
+    // smart_contracts/aspa/contract.py:15
+    // @abimethod()
+    txn OnCompletion
+    !
+    assert // OnCompletion is not NoOp
+    txn ApplicationID
+    assert // can only call when not creating
+    // smart_contracts/aspa/contract.py:5
+    // class DigitalMarketplace(ARC4Contract):
+    txna ApplicationArgs 1
+    btoi
+    // smart_contracts/aspa/contract.py:15
+    // @abimethod()
+    callsub update_price
+    intc_1 // 1
+    return
+
+main_create_app_route@3:
+    // smart_contracts/aspa/contract.py:9
+    // @abimethod(allow_actions=["NoOp"], create="require")
+    txn OnCompletion
+    !
+    assert // OnCompletion is not NoOp
+    txn ApplicationID
+    !
+    assert // can only call when creating
+    // smart_contracts/aspa/contract.py:5
+    // class DigitalMarketplace(ARC4Contract):
+    txna ApplicationArgs 1
+    btoi
+    txnas Assets
+    txna ApplicationArgs 2
+    btoi
+    // smart_contracts/aspa/contract.py:9
+    // @abimethod(allow_actions=["NoOp"], create="require")
+    callsub create_app
+    intc_1 // 1
+    return
+
+
+// smart_contracts.aspa.contract.DigitalMarketplace.create_app(asset: uint64, price: uint64) -> void:
+create_app:
+    // smart_contracts/aspa/contract.py:9-10
+    // @abimethod(allow_actions=["NoOp"], create="require")
+    // def create_app(self, asset: Asset, price: UInt64) -> None:
+    proto 2 0
+    // smart_contracts/aspa/contract.py:12
+    // self.asset_id = asset.id
+    bytec_0 // "asset_id"
+    frame_dig -2
+    app_global_put
+    // smart_contracts/aspa/contract.py:13
+    // self.price_per_unit = price
+    bytec_1 // "price_per_unit"
+    frame_dig -1
+    app_global_put
+    retsub
+
+
+// smart_contracts.aspa.contract.DigitalMarketplace.update_price(new_price: uint64) -> void:
+update_price:
+    // smart_contracts/aspa/contract.py:15-16
+    // @abimethod()
+    // def update_price(self, new_price: UInt64) -> None:
+    proto 1 0
+    // smart_contracts/aspa/contract.py:19
+    // Txn.sender == Global.creator_address
+    txn Sender
+    global CreatorAddress
+    ==
+    // smart_contracts/aspa/contract.py:18-20
+    // assert (
+    //     Txn.sender == Global.creator_address
+    // ), "Only the creator can update the price."
+    assert // Only the creator can update the price.
+    // smart_contracts/aspa/contract.py:21
+    // self.price_per_unit = new_price
+    bytec_1 // "price_per_unit"
+    frame_dig -1
+    app_global_put
+    retsub
+
+
+// smart_contracts.aspa.contract.DigitalMarketplace.opt_in_asset(deposit: uint64) -> void:
+opt_in_asset:
+    // smart_contracts/aspa/contract.py:23-24
+    // @abimethod()
+    // def opt_in_asset(self, deposit: gtxn.PaymentTransaction) -> None:
+    proto 1 0
+    // smart_contracts/aspa/contract.py:26
+    // assert Txn.sender == Global.creator_address, "Only the creator can opt-in."
+    txn Sender
+    global CreatorAddress
+    ==
+    assert // Only the creator can opt-in.
+    // smart_contracts/aspa/contract.py:27
+    // assert not Global.current_application_address.is_opted_in(
+    global CurrentApplicationAddress
+    // smart_contracts/aspa/contract.py:28
+    // Asset(self.asset_id)
+    intc_0 // 0
+    bytec_0 // "asset_id"
+    app_global_get_ex
+    assert // check self.asset_id exists
+    // smart_contracts/aspa/contract.py:27-29
+    // assert not Global.current_application_address.is_opted_in(
+    //     Asset(self.asset_id)
+    // ), "Already opted-in."
+    asset_holding_get AssetBalance
+    bury 1
+    !
+    assert // Already opted-in.
+    // smart_contracts/aspa/contract.py:31
+    // deposit.receiver == Global.current_application_address
+    frame_dig -1
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    // smart_contracts/aspa/contract.py:30-32
+    // assert (
+    //     deposit.receiver == Global.current_application_address
+    // ), "Funds must go to contract."
+    assert // Funds must go to contract.
+    // smart_contracts/aspa/contract.py:34
+    // deposit.amount == Global.min_balance + Global.asset_opt_in_min_balance
+    frame_dig -1
+    gtxns Amount
+    global MinBalance
+    global AssetOptInMinBalance
+    +
+    ==
+    // smart_contracts/aspa/contract.py:33-35
+    // assert (
+    //     deposit.amount == Global.min_balance + Global.asset_opt_in_min_balance
+    // ), "Incorrect deposit amount."
+    assert // Incorrect deposit amount.
+    // smart_contracts/aspa/contract.py:37-41
+    // itxn.AssetTransfer(
+    //     xfer_asset=self.asset_id,
+    //     asset_receiver=Global.current_application_address,
+    //     asset_amount=0,
+    // ).submit()
+    itxn_begin
+    // smart_contracts/aspa/contract.py:38
+    // xfer_asset=self.asset_id,
+    intc_0 // 0
+    bytec_0 // "asset_id"
+    app_global_get_ex
+    assert // check self.asset_id exists
+    // smart_contracts/aspa/contract.py:39
+    // asset_receiver=Global.current_application_address,
+    global CurrentApplicationAddress
+    // smart_contracts/aspa/contract.py:40
+    // asset_amount=0,
+    intc_0 // 0
+    itxn_field AssetAmount
+    itxn_field AssetReceiver
+    itxn_field XferAsset
+    // smart_contracts/aspa/contract.py:37
+    // itxn.AssetTransfer(
+    intc_2 // axfer
+    itxn_field TypeEnum
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/aspa/contract.py:37-41
+    // itxn.AssetTransfer(
+    //     xfer_asset=self.asset_id,
+    //     asset_receiver=Global.current_application_address,
+    //     asset_amount=0,
+    // ).submit()
+    itxn_submit
+    retsub
+
+
+// smart_contracts.aspa.contract.DigitalMarketplace.purchase(payment: uint64, amount: uint64) -> void:
+purchase:
+    // smart_contracts/aspa/contract.py:43-44
+    // @abimethod()
+    // def purchase(self, payment: gtxn.PaymentTransaction, amount: UInt64) -> None:
+    proto 2 0
+    // smart_contracts/aspa/contract.py:46
+    // assert payment.sender == Txn.sender, "Sender mismatch."
+    frame_dig -2
+    gtxns Sender
+    txn Sender
+    ==
+    assert // Sender mismatch.
+    // smart_contracts/aspa/contract.py:48
+    // payment.receiver == Global.current_application_address
+    frame_dig -2
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    // smart_contracts/aspa/contract.py:47-49
+    // assert (
+    //     payment.receiver == Global.current_application_address
+    // ), "Payment must go to contract."
+    assert // Payment must go to contract.
+    // smart_contracts/aspa/contract.py:51
+    // payment.amount == self.price_per_unit * amount
+    frame_dig -2
+    gtxns Amount
+    intc_0 // 0
+    bytec_1 // "price_per_unit"
+    app_global_get_ex
+    assert // check self.price_per_unit exists
+    frame_dig -1
+    *
+    ==
+    // smart_contracts/aspa/contract.py:50-52
+    // assert (
+    //     payment.amount == self.price_per_unit * amount
+    // ), "Incorrect payment amount."
+    assert // Incorrect payment amount.
+    // smart_contracts/aspa/contract.py:54-58
+    // itxn.AssetTransfer(
+    //     xfer_asset=self.asset_id,
+    //     asset_receiver=Txn.sender,
+    //     asset_amount=amount,
+    // ).submit()
+    itxn_begin
+    // smart_contracts/aspa/contract.py:55
+    // xfer_asset=self.asset_id,
+    intc_0 // 0
+    bytec_0 // "asset_id"
+    app_global_get_ex
+    assert // check self.asset_id exists
+    // smart_contracts/aspa/contract.py:56
+    // asset_receiver=Txn.sender,
+    txn Sender
+    frame_dig -1
+    itxn_field AssetAmount
+    itxn_field AssetReceiver
+    itxn_field XferAsset
+    // smart_contracts/aspa/contract.py:54
+    // itxn.AssetTransfer(
+    intc_2 // axfer
+    itxn_field TypeEnum
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/aspa/contract.py:54-58
+    // itxn.AssetTransfer(
+    //     xfer_asset=self.asset_id,
+    //     asset_receiver=Txn.sender,
+    //     asset_amount=amount,
+    // ).submit()
+    itxn_submit
+    retsub
+
+
+// smart_contracts.aspa.contract.DigitalMarketplace.close_app() -> void:
+close_app:
+    // smart_contracts/aspa/contract.py:60-61
+    // @abimethod(allow_actions=["DeleteApplication"])
+    // def close_app(self) -> None:
+    proto 0 0
+    // smart_contracts/aspa/contract.py:64
+    // Txn.sender == Global.creator_address
+    txn Sender
+    global CreatorAddress
+    ==
+    // smart_contracts/aspa/contract.py:63-65
+    // assert (
+    //     Txn.sender == Global.creator_address
+    // ), "Only the creator can delete the contract."
+    assert // Only the creator can delete the contract.
+    // smart_contracts/aspa/contract.py:67-73
+    // itxn.AssetTransfer(
+    //     xfer_asset=self.asset_id,
+    //     asset_receiver=Global.creator_address,
+    //     asset_amount=0,
+    //     asset_close_to=Global.creator_address,
+    //     fee=1_000,
+    // ).submit()
+    itxn_begin
+    // smart_contracts/aspa/contract.py:68
+    // xfer_asset=self.asset_id,
+    intc_0 // 0
+    bytec_0 // "asset_id"
+    app_global_get_ex
+    assert // check self.asset_id exists
+    // smart_contracts/aspa/contract.py:69
+    // asset_receiver=Global.creator_address,
+    global CreatorAddress
+    // smart_contracts/aspa/contract.py:71
+    // asset_close_to=Global.creator_address,
+    dup
+    itxn_field AssetCloseTo
+    // smart_contracts/aspa/contract.py:70
+    // asset_amount=0,
+    intc_0 // 0
+    itxn_field AssetAmount
+    itxn_field AssetReceiver
+    itxn_field XferAsset
+    // smart_contracts/aspa/contract.py:67
+    // itxn.AssetTransfer(
+    intc_2 // axfer
+    itxn_field TypeEnum
+    // smart_contracts/aspa/contract.py:72
+    // fee=1_000,
+    intc_3 // 1000
+    itxn_field Fee
+    // smart_contracts/aspa/contract.py:67-73
+    // itxn.AssetTransfer(
+    //     xfer_asset=self.asset_id,
+    //     asset_receiver=Global.creator_address,
+    //     asset_amount=0,
+    //     asset_close_to=Global.creator_address,
+    //     fee=1_000,
+    // ).submit()
+    itxn_submit
+    // smart_contracts/aspa/contract.py:75-80
+    // itxn.Payment(
+    //     receiver=Global.creator_address,
+    //     amount=0,
+    //     close_remainder_to=Global.creator_address,
+    //     fee=1_000,
+    // ).submit()
+    itxn_begin
+    // smart_contracts/aspa/contract.py:76
+    // receiver=Global.creator_address,
+    global CreatorAddress
+    // smart_contracts/aspa/contract.py:78
+    // close_remainder_to=Global.creator_address,
+    dup
+    itxn_field CloseRemainderTo
+    // smart_contracts/aspa/contract.py:77
+    // amount=0,
+    intc_0 // 0
+    itxn_field Amount
+    itxn_field Receiver
+    // smart_contracts/aspa/contract.py:75
+    // itxn.Payment(
+    intc_1 // pay
+    itxn_field TypeEnum
+    // smart_contracts/aspa/contract.py:79
+    // fee=1_000,
+    intc_3 // 1000
+    itxn_field Fee
+    // smart_contracts/aspa/contract.py:75-80
+    // itxn.Payment(
+    //     receiver=Global.creator_address,
+    //     amount=0,
+    //     close_remainder_to=Global.creator_address,
+    //     fee=1_000,
+    // ).submit()
+    itxn_submit
+    retsub
