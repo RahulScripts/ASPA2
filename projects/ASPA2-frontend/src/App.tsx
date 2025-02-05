@@ -4,7 +4,11 @@ import { PeraWalletConnect } from '@perawallet/connect'
 import { PROVIDER_ID, ProvidersArray, WalletProvider, useInitializeProviders } from '@txnlab/use-wallet'
 import algosdk from 'algosdk'
 import { SnackbarProvider } from 'notistack'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Home from './Home'
+import Dashboard from './components/Dashboard'
+import Login from './components/Login'
+import Registration from './components/Registration'
 import { getAlgodConfigFromViteEnvironment, getKmdConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
 let providersArray: ProvidersArray
@@ -28,8 +32,6 @@ if (import.meta.env.VITE_ALGOD_NETWORK === '') {
     { id: PROVIDER_ID.PERA, clientStatic: PeraWalletConnect },
     { id: PROVIDER_ID.DAFFI, clientStatic: DaffiWalletConnect },
     { id: PROVIDER_ID.EXODUS },
-    // If you are interested in WalletConnect v2 provider
-    // refer to https://github.com/TxnLab/use-wallet for detailed integration instructions
   ]
 }
 
@@ -48,10 +50,17 @@ export default function App() {
   })
 
   return (
-    <SnackbarProvider maxSnack={3}>
-      <WalletProvider value={walletProviders}>
-        <Home />
-      </WalletProvider>
-    </SnackbarProvider>
+    <BrowserRouter>
+      <SnackbarProvider maxSnack={3}>
+        <WalletProvider value={walletProviders}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/registration" element={<Registration />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+          </Routes>
+        </WalletProvider>
+      </SnackbarProvider>
+    </BrowserRouter>
   )
 }
