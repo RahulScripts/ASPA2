@@ -6,9 +6,12 @@ import algosdk from 'algosdk'
 import { SnackbarProvider } from 'notistack'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Home from './Home'
+import ContractInteraction from './components/ContractInteraction'
 import Dashboard from './components/Dashboard'
 import Login from './components/Login'
+
 import Registration from './components/Registration'
+
 import { getAlgodConfigFromViteEnvironment, getKmdConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
 let providersArray: ProvidersArray
@@ -58,6 +61,7 @@ export default function App() {
             <Route path="/registration" element={<Registration />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/test" element={<ContractInteraction />} />
           </Routes>
         </WalletProvider>
       </SnackbarProvider>

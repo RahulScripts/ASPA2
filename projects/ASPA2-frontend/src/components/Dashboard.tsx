@@ -1,105 +1,139 @@
-import {
-  Button,
-  Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
-} from '@chakra-ui/react'
-import { useWallet } from '@txnlab/use-wallet'
-import { addDoc, collection } from 'firebase/firestore'
+import { Box, Button, FormControl, FormLabel, Input, Text, useToast } from '@chakra-ui/react'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { useState } from 'react'
 import { db } from '../firebaseConfig'
 
 const Dashboard = () => {
-  const { activeAddress } = useWallet()
-  const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
   const [loading, setLoading] = useState(false)
+  const toast = useToast()
 
-  const handleSubmit = async () => {
-    if (!name || !price || !activeAddress) {
-      alert('All fields are required!')
+  const getNextDocId = async () => {
+    const counterRef = doc(db, 'metadata', 'counter')
+    const counterSnap = await getDoc(counterRef)
+    let newId = 1
+
+    if (counterSnap.exists()) {
+      newId = counterSnap.data().count + 1
+    }
+
+    await setDoc(counterRef, { count: newId })
+    return newId
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (!name || !price) {
+      toast({
+        title: 'All fields are required!',
+        status: 'error',
+        position: 'top',
+        duration: 3000,
+      })
       return
     }
+
     setLoading(true)
     try {
-      const docRef = await addDoc(collection(db, 'assets'), {
+      const numericId = await getNextDocId()
+
+      await setDoc(doc(db, 'assets', numericId.toString()), {
+        id: numericId,
         name,
         price: Number(price),
-        owner: activeAddress,
         createdAt: new Date(),
       })
 
-      await executeOnChain(docRef.id, name, price, activeAddress)
-
-      alert('Asset registered successfully!')
-      setIsOpen(false)
+      toast({
+        title: 'Asset registered successfully!',
+        status: 'success',
+        position: 'top',
+        duration: 3000,
+      })
       setName('')
       setPrice('')
     } catch (error) {
       console.error('Error adding asset:', error)
-      alert('Failed to register asset. Try again.')
+      toast({
+        title: 'Failed to register asset. Try again.',
+        status: 'error',
+        position: 'top',
+        duration: 3000,
+      })
     }
     setLoading(false)
   }
 
-  const executeOnChain = async (assetId, name, price, owner) => {
-    try {
-      console.log('Executing Algorand contract with:', { assetId, name, price, owner })
-      // Call your Algorand smart contract here
-    } catch (error) {
-      console.error('Blockchain transaction failed:', error)
-    }
-  }
-
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold text-center mb-4">Tokenization Dashboard</h1>
-      <Tabs>
-        <TabList>
-          <Tab>Tokenize Crop</Tab>
-          <Tab>Buy Crops</Tab>
-        </TabList>
+    <Box p={0} bg="black" minHeight="100vh" display="flex" flexDirection="column" alignItems="center">
+      {/* Centered Logo */}
+      <Box width="100%" height="50vh" display="flex" justifyContent="center" alignItems="center">
+        <img src="./src/assets/ASPAW.png" alt="Platform_Image" objectFit="cover" />
+      </Box>
 
-        <TabPanels>
-          <TabPanel>
-            <Button onClick={() => setIsOpen(true)} colorScheme="blue">
-              Tokenize Your Crop
-            </Button>
-          </TabPanel>
-          <TabPanel>
-            <p>Buy tokenized crops will be implemented here.</p>
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
-
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Tokenize Your Crop</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Input placeholder="Crop Name" value={name} onChange={(e) => setName(e.target.value)} mb={3} />
-            <Input placeholder="Price (INR)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="blue" onClick={handleSubmit} isLoading={loading}>
-              Submit
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </div>
+      {/* Asset Registration Form */}
+      <Box mt={6} p={6} bg="white" color="black" borderRadius="16px" boxShadow="2xl" height="250px" padding={20} width="400px">
+        <Text fontWeight="semibold" color="gray.700" textAlign="center">
+          Register Asset
+        </Text>
+        <form onSubmit={handleSubmit}>
+          <FormControl mt={4} isRequired>
+            <FormLabel>Asset Name</FormLabel>
+            <Input
+              placeholder="Enter Asset Name"
+              value={name}
+              margintop="10px"
+              marginBottom="10px"
+              onChange={(e) => setName(e.target.value)}
+              bg="gray.100"
+              _focus={{
+                bg: 'white',
+                borderColor: 'blue.500',
+                boxShadow: 'outline',
+              }}
+            />
+          </FormControl>
+          <FormControl mt={4} isRequired>
+            <FormLabel>Price (INR)</FormLabel>
+            <Input
+              type="number"
+              placeholder="Enter Price"
+              margintop="10px"
+              marginBottom="10px"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              bg="gray.100"
+              _focus={{
+                bg: 'white',
+                borderColor: 'blue.500',
+                boxShadow: 'outline',
+              }}
+            />
+          </FormControl>
+          <Button
+            mt={6}
+            type="submit"
+            padding={10}
+            borderRadius="10px"
+            color="white"
+            background="black"
+            margintop="10px"
+            marginBottom="10px"
+            isLoading={loading}
+            colorScheme="blue"
+            width="full"
+            _hover={{
+              bg: 'blue.600',
+              transform: 'scale(1.05)',
+              transition: '0.2s',
+            }}
+          >
+            Submit
+          </Button>
+        </form>
+      </Box>
+    </Box>
   )
 }
 
